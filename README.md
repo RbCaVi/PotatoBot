@@ -1,2 +1,2 @@
 # PotatoBot
-A Discord bot to help with the Potatoes! server
+A Discord.py bot to help with the Potatoes! server
