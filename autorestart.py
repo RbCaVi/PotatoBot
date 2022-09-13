@@ -13,3 +13,4 @@ while True:
 		process.send_signal(subprocess.signal.SIGINT)
 		process.wait()
 		process=subprocess.Popen(["python3",file], shell=False)
+		lastmodified=lastmodified2
