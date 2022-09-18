@@ -13,5 +13,6 @@ while True:
 		print("Restarting...")
 		process.send_signal(subprocess.signal.SIGINT)
 		process.wait()
+		time.sleep(1)
 		process=subprocess.Popen(["python3",file], shell=False)
 		lastmodified=lastmodified2

@@ -1,5 +1,6 @@
 import discord
 import json
+import datetime
 
 invitesdict = {}
 
@@ -14,7 +15,7 @@ class MyClient(discord.Client):
         self.commandargs={'example':[['arg1','string','The first argument']]}
 
     async def on_ready(self):
-        print('Logged on as', self.user)
+        logf(logfile,'Logged on as',self.user)
         # Getting all the guilds our bot is in
         for guild in self.guilds:
             await guild.get_channel(allconfig[str(guild.id)]['potato-log']).send('PotatoBot is running')
@@ -27,7 +28,7 @@ class MyClient(discord.Client):
 
     async def on_message(self, message):
         # don't respond to ourselves
-        print(message.content)
+        logf(logfile,f'+{message.guild.id} {message.channel.id} {message.author.id} '+message.content)
         if self.has_potato(message):
             await message.add_reaction('🥔')
         if self.is_forbidden(message):
@@ -54,10 +55,9 @@ class MyClient(discord.Client):
                 return
             await log(message,command+' used by '+member_str(message.author)+' with args \n'+message.content+'\ndoes not exist')
 
-
     async def on_message_edit(self, m_before, m_after):
         this_user = m_after.channel.guild.get_member(self.user.id)
-        print(m_before.content, m_after.content)
+        logf(logfile,'~'+m_before.content.replace('|','\\|')+'|'+m_after.content.replace('|','\\|'))
         if self.has_potato(m_after):
             await m_after.add_reaction('🥔')
         if not self.has_potato(m_after):
@@ -71,9 +71,8 @@ class MyClient(discord.Client):
 
     async def on_member_join(self, member):
         config=allconfig[str(member.guild.id)]
-        print("a member joined!")
+        logf(logfile,"j"+member.id)
         welcome_channel=member.guild.get_channel(config['welcome-channel'])
-        print(member,welcome_channel)
         await welcome_channel.send("<@&"+str(config['new-member-notification-role'])+"> welcome the newest member of this server <@"+str(member.id)+">!")
 
         # Getting the invites before and after the user joined so we can compare them and
@@ -93,11 +92,11 @@ class MyClient(discord.Client):
                 # the name, invite code used, the person
                 # who created the invite code, or the inviter.
 
-                print(f"Member {member.name+'#'+member.discriminator} Joined")
-                print(f"Invite Code: {invite.code}")
-                print(f"Inviter: {invite.inviter}")
-                print(f"Member {member.id} Joined")
-                print(f"Inviter: {invite.inviter.id}")
+                logf(logfile,f"#Member {member.name+'#'+member.discriminator} Joined")
+                logf(logfile,f"#Invite Code: {invite.code}")
+                logf(logfile,f"#Inviter: {invite.inviter}")
+                logf(logfile,f"#Member {member.id} Joined")
+                logf(logfile,f"#Inviter: {invite.inviter.id}")
 
                 # add an entry for the member in inviters.json and the inviters variable
                 inviters=invitersdict[member.guild.id]
@@ -160,7 +159,7 @@ class MyClient(discord.Client):
                 return ''
         aliases=[alias for alias in self.aliases if self.aliases[alias]==command]
         if command in self.commandargs:
-            args=[f'\n> > {arg[0]} ({arg[1]}) {arg[2]}' for arg in self.commandargs[command]]
+            args=[f'\n> > {arg[0]}'+(f' ({arg[1]}) ' if arg[1] is not None else ' ')+f'{arg[2]}' for arg in self.commandargs[command]]
         else:
             args=[]
         helpstr=(
@@ -176,11 +175,19 @@ class MyClient(discord.Client):
     def getargs(self,command):
         if command not in self.commandargs:
             return ''
-        return ''.join([' '+arg[0] for arg in self.commandargs[command]])
-
+        return ''.join([' '+('[' if (len(arg)>3 and arg[3]) else '<')+arg[0]+(']' if (len(arg)>3 and arg[3]) else '>') for arg in self.commandargs[command]])
 
 async def log(m,message):
+
     await m.guild.get_channel(allconfig[str(m.guild.id)]['potato-log']).send(message)
+
+def logf(f,*message):
+    for part in message:
+        if type(part)==str:
+            f.write(part)
+        else:
+            f.write(str(part))
+    print(*message)
 
 def process(message):
     replacements={
@@ -213,15 +220,11 @@ def read_inviters():
     return inviters
 
 def write_inviters(inviters):
-    print(json.dumps({str(inviter):inviters[inviter] for inviter in inviters}))
     with open('inviters.json','w') as file:
         file.write(json.dumps({guild:{str(inviter):invitersdict[guild][inviter] for inviter in invitersdict[guild]} for guild in invitersdict}))
-        #for inviter in inviters:
-        #    file.write(str(inviter)+" "+" ".join([str(invited) for invited in inviters[inviter]])+"\n")
 
 async def update_invite_roles(client,inviters,inviter,config):
     invitedpeople=len(inviters[inviter.id])
-    print(invitedpeople)
     for i,rank in enumerate(config["invite-ranks"]):
         if invitedpeople==rank:
             prev_role=inviter.guild.get_role(config["invite-roles"][i-1])
@@ -230,7 +233,6 @@ async def update_invite_roles(client,inviters,inviter,config):
             await inviter.add_roles(new_role,reason=f'For inviting {invitedpeople} people')
             await log(inviter,f'Gave {get_name(inviter)} `{new_role.name}` for inviting {invitedpeople} people')
             break
-
 
 def member_str(member):
     return "<@"+str(member.id)+">"
@@ -244,6 +246,7 @@ def member_id_str(memberid,guild):
     return member.name+"#"+member.discriminator
 
 def get_name(member):
+
     return member.nick or member.name
 
 async def send_big_message(message,channel):
@@ -262,6 +265,14 @@ def get_managed_role_ids(member):
     managedroleids=sum([config["manage-role-ids"][roleid] for roleid in config["manage-role-ids"] if roleid in roleids],[])
     return sorted(set(managedroleids),key=lambda x:member.guild.get_role(x).name)
 
+def timedeltatostr(td):
+    if td.days<1:
+        if td.seconds<3600:
+            if td.seconds<60:
+                return f'{td.seconds} seconds'
+            return f'{td.seconds//60} minutes {td.seconds%60} seconds'
+    return f'{td.days+td.seconds//3600} hours'
+
 def command(client,*,allowedchannels=None,aliases=None,args=None):
     def add_command(func):
         client.commands[func.__name__]=func
@@ -271,257 +282,277 @@ def command(client,*,allowedchannels=None,aliases=None,args=None):
             for alias in aliases:
                 client.aliases[alias]=func.__name__
         if args is not None:
-            client.commandargs[command]=args
+            client.commandargs[func.__name__]=args
     return add_command
 
-print('Starting...')
+logfilename=f'output/potato-log-{datetime.datetime.now()}.txt'
+logfile=open(logfilename,'w')
+
+logf(logfile,'Starting...')
 
 intents = discord.Intents.all()
 
 with open("token","r") as tokenfile:
     token = tokenfile.read()
+logf(logfile,'Read token')
 
 invitersdict=read_inviters()
+logf(logfile,'Read inviters')
 
 with open("config.json","r") as configfile:
     allconfig = json.loads(configfile.read())
-
-intents = discord.Intents.all()
+logf(logfile,'Read config')
 
 client = MyClient(intents=intents)
 
-modonly=allconfig["mod-only-channels"]
+usecommands=True
+if usecommands:
+    modonly=allconfig["mod-only-channels"]
 
-@command(client)
-async def ping(self,message,channel,commandline,config):
-    "Check if PotatoBot is running"
-    await channel.send("Pong!")
+    @command(client)
+    async def ping(self,message,channel,commandline,config):
+        "Check if PotatoBot is running"
+        await channel.send("Pong!")
 
-@command(client,args=[['message','string','The message to echo']])
-async def echo(self,message,channel,commandline,config):
-    "Echo a message"
-    await channel.send(message.content.split(maxsplit=1)[1])
+    @command(client,args=[['message','string','The message to echo']])
+    async def echo(self,message,channel,commandline,config):
+        "Echo a message"
+        await channel.send(message.content.split(maxsplit=1)[1])
 
-@command(client,args=[['message','string','The message to say']])
-async def say(self,message,channel,commandline,config):
-    "Say a message"
-    await log(message,'Deleted '+message.content+' by '+member_str(message.author))
-    await message.delete()
-    await channel.send(message.content.split(maxsplit=1)[1],reference=message.reference)
+    @command(client,args=[['message','string','The message to say']])
+    async def say(self,message,channel,commandline,config):
+        "Say a message"
+        await log(message,'Deleted '+message.content+' by '+member_str(message.author))
+        await message.delete()
+        await channel.send(message.content.split(maxsplit=1)[1],reference=message.reference)
 
-@command(client,args=[['commands... ',None,'The name of commands to get help about',True]])
-async def help(self,message,channel,commandline,config):
-    "Show this help message"
-    if len(commandline)==1:
-        madehelp=self.makehelp(channel)
-        await channel.send(madehelp)
-    else:
-        for command in commandline[1:]:
-            madehelp=[]
-            madehelp.append(self.makecommandhelp(channel,command))
-        await channel.send('\n\n'.join(madehelp))
-
-@command(client)
-async def stats(self,message,channel,commandline,config):
-    "Show some stats"
-    statsmessage=f'Number of members: {len(message.guild.members)}'
-    await message.channel.send('Config successfully reloaded!')
-
-@command(client)
-async def help_roles(self,message,channel,commandline,config):
-    "Show the roles that can be toggled and/or managed"
-    selftoggleroles='\n'.join(['> `@'+channel.guild.get_role(role).name+'`' for role in config["role-add-any"]])
-    managedroleids=get_managed_role_ids(message.author)
-    managedroles='\n'.join(['> `@'+channel.guild.get_role(role).name+'`'
-        for role in
-        managedroleids
-    ])
-    print(managedroles)
-    finalmessage=(f'<@{message.author.id}> can manage roles:\n{managedroles}\n\n' if len(managedroleids)>0 else '')+f'Anyone can toggle roles:\n{selftoggleroles}'
-    await channel.send(finalmessage)
-
-@command(client)
-async def users(self,message,channel,commandline,config):
-    "Print a list of all the users in the server, sorted by name"
-    users=message.guild.members
-    await channel.send('\n'.join([
-        "<@"+str(mem.id)+">"
-        for mem in sorted(message.guild.members,key=lambda x:get_name(x))
-    ]))
-
-@command(client)
-async def roles(self,message,channel,commandline,config):
-    "Print a list of all the roles in the server, sorted by name"
-    await channel.send('\n'.join([
-        "<@&"+str(role.id)+">"
-        for role in sorted(message.guild.roles,key=lambda x:x.name)
-    ]))
-
-@command(client)
-async def ranks(self,message,channel,commandline,config):
-    "Print a list of all the roles in the server, sorted by rank"
-    await channel.send('\n'.join([
-        "<@&"+str(role.id)+">"
-        for role in message.guild.roles
-    ]))
-
-@command(client,allowedchannels=modonly,args=[['inviter','id','The ID of the inviter'],['invited','id','The ID of the invited member']])
-async def invited(self,message,channel,commandline,config):
-    "DO NOT USE!\nManually add someone to the invited list by ID"
-    inviterid=int(commandline[1])
-    memberid=int(commandline[2])
-    inviters=invitersdict[message.guild.id]
-    if memberid not in inviters:
-        inviters[memberid]=[]
-    if memberid not in inviters[inviterid]:
-        inviters[inviterid].append(memberid)
-    write_inviters(inviters)
-    await update_invite_roles(self,inviters,message.guild.get_member(inviterid),config)
-
-@command(client,args=[['inviter...','@person','The people to print the inviters for',True]])
-async def inviters(self,message,channel,commandline,config):
-    "Print a list of all the users in the server and the people they invited, sorted by number of invites"
-    inviters=invitersdict[message.guild.id]
-    guild=channel.guild
-    if len(message.mentions)==0:
-        invitersmessage=('\n'.join(sorted([
-            (
-                member_id_str(inviter,guild)+
-                ":"+
-                ''.join([
-                    '\n> '+member_id_str(inviter2,guild)
-                    for inviter2 in inviters[inviter]
-                ])+
-                "\n"
-            ).strip()+'\n'
-            for inviter in inviters
-        ],key=lambda x:len([l for l in x if l=='\n']))))
-    else:
-        invitersmessage=('\n'.join(sorted([
-            (
-                member_id_str(inviter,guild)+
-                ":"+
-                ''.join([
-                    '\n> '+member_id_str(inviter2,guild)
-                    for inviter2 in inviters[inviter]
-                ])+
-                "\n"
-            ).strip()+'\n'
-            for inviter in [mention.id for mention in message.mentions]
-        ],key=lambda x:len([l for l in x if l=='\n']))))
-    print(invitersmessage)
-    await send_big_message(invitersmessage,channel)
-
-@command(client)
-async def invites(self,message,channel,commandline,config):
-    "Print a list of all the invites to this server"
-    invites=await message.guild.invites()
-    invites=[
-        member_str(invite.inviter)+": https://discord.gg/"+invite.code
-        for invite in invites
-    ]
-    await channel.send('\n'.join(invites))
-
-@command(client,args=[['person','@person','The person to give the role to',True],['role','@role','The role to give',True]])
-async def giverole(self,message,channel,commandline,config):
-    "Give a role to someone"
-    managedroleids=get_managed_role_ids(message.author)
-    if message.role_mentions[0].id in managedroleids:
-        if len(commandline)>3:
-            reason=' '.join(commandline[3:])
+    @command(client,args=[['command...',None,'The names of commands to get help about',True]])
+    async def help(self,message,channel,commandline,config):
+        "Show this help message"
+        if len(commandline)==1:
+            madehelp=self.makehelp(channel)
+            await channel.send(madehelp)
         else:
-            reason=None
-        await message.mentions[0].add_roles(message.role_mentions[0],reason=reason)
-        successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been given to '+member_str(message.mentions[0])+' '+reason
-        await channel.send(successmessage)
-        return
-    failmessage='You do not have permission to give `@'+message.role_mentions[0].name+'` to '+member_str(message.mentions[0])
-    await channel.send(failmessage)
+            for command in commandline[1:]:
+                madehelp=[]
+                madehelp.append(self.makecommandhelp(channel,command))
+            await channel.send('\n\n'.join(madehelp))
 
-@command(client,args=[['person','@person','The person to remove the role from',True],['role','@role','The role to remove',True]])
-async def removerole(self,message,channel,commandline,config):
-    "Remove a role from someone"
-    managedroleids=get_managed_role_ids(message.author)
-    if message.role_mentions[0].id in managedroleids:
-        if len(commandline)>3:
-            reason=' '.join(commandline[3:])
+    @command(client)
+    async def stats(self,message,channel,commandline,config):
+        "Show some stats"
+        if len(message.mentions)==0:
+            invites=len(await message.guild.invites())
+            members=len(message.guild.members)
+            statsmessage=f'Number of invites: {invites}\nNumber of members: {members}'
+        elif len(message.mentions)==1:
+            statsmessage=(
+                'Highest role: `'+max(message.mentions[0].roles).name+'`'+
+                '\nTime in server: '+timedeltatostr(datetime.datetime.now()-message.mentions[0].joined_at)+
+                '\nNumber of invites: '+str(len([invite for invite in await message.guild.invites() if invite.inviter==message.mentions[0]]))
+            )
         else:
-            reason=None
-        await message.mentions[0].remove_roles(message.role_mentions[0],reason=reason)
-        successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been removed from '+member_str(message.mentions[0])+' '+reason
-        await channel.send(successmessage)
-        return
-    failmessage='You do not have permission to remove `@'+message.role_mentions[0].name+'` from '+member_str(message.mentions[0])
-    await channel.send(failmessage)
+            statsmessage=''
+            for mention in message.mentions:
+                statsmessage+=(
+                    member_str(mention)+
+                    '\nHighest role: `'+max(mention.roles).name+'`'+
+                    '\nTime in server: '+timedeltatostr(datetime.datetime.now()-mention.joined_at)+
+                    '\nNumber of invites: '+str(len([invite for invite in await message.guild.invites() if invite.inviter==mention]))+
+                    '\n\n'
+                )
+        await message.channel.send(statsmessage)
 
-@command(client,args=[['role','@role','The role to toggle']])
-async def togglerole(self,message,channel,commandline,config):
-    "Toggle a role"
-    roles=message.author.roles
-    if message.role_mentions[0].id in config["role-add-any"]:
-        for role in roles:
-            if role.id==message.role_mentions[0].id:
-                await message.author.remove_roles(message.role_mentions[0])
-                successmessage='`@'+message.role_mentions[0].name+'` role has been toggled off for '+get_name(message.author)
-                await channel.send(successmessage)
-                return
-        await message.author.add_roles(message.role_mentions[0])
-        successmessage='`@'+message.role_mentions[0].name+'` role has been toggled on for '+get_name(message.author)
-        await channel.send(successmessage)
-        return
-    failmessage='You do not have permission to toggle `@'+message.role_mentions[0].name+'`'
-    await channel.send(failmessage)
 
-@command(client,allowedchannels=modonly,args=[['person','@person','The person to kick'],['reason','@person','The person to kick']])
-async def kick(self,message,channel,commandline,config):
-    "Kick someone from the server"
-    if channel.id not in config['punishment-channels']:
-        return
-    userstr = commandline[1]
-    reason = " ".join(commandline[2:])
-    if reason.split()==[]:
-        reason="for no reason"
+    @command(client)
+    async def help_roles(self,message,channel,commandline,config):
+        "Show the roles that can be toggled and/or managed"
+        selftoggleroles='\n'.join(['> `@'+channel.guild.get_role(role).name+'`' for role in config["role-add-any"]])
+        managedroleids=get_managed_role_ids(message.author)
+        managedroles='\n'.join(['> `@'+channel.guild.get_role(role).name+'`'
+            for role in
+            managedroleids
+        ])
+        finalmessage=(f'<@{message.author.id}> can manage roles:\n{managedroles}\n\n' if len(managedroleids)>0 else '')+f'Anyone can toggle roles:\n{selftoggleroles}'
+        await channel.send(finalmessage)
 
-    print(message.mentions[0])
-    user=message.mentions[0]
-    await channel.guild.kick(user,reason=reason)
-    kickmessage="Kicked "+userstr+"\nReason: "+reason
-    await channel.send(kickmessage)
+    @command(client)
+    async def users(self,message,channel,commandline,config):
+        "Print a list of all the users in the server, sorted by name"
+        users=message.guild.members
+        await channel.send('\n'.join([
+            "<@"+str(mem.id)+">"
+            for mem in sorted(message.guild.members,key=lambda x:get_name(x))
+        ]))
 
-    for channelid in config["punishment-notification-channels"]:
-        punishment_channel = channel.guild.get_channel(channelid)
-        await punishment_channel.send(kickmessage)
+    @command(client)
+    async def roles(self,message,channel,commandline,config):
+        "Print a list of all the roles in the server, sorted by name"
+        await channel.send('\n'.join([
+            "<@&"+str(role.id)+">"
+            for role in sorted(message.guild.roles,key=lambda x:x.name)
+        ]))
 
-@command(client,allowedchannels=modonly,args=[['person','@person','The person to ban']])
-async def ban(self,message,channel,commandline,config):
-    "Ban someone from the server"
-    if channel.id not in config['punishment-channels']:
-        return
-    userstr = commandline[1]
-    reason = " ".join(commandline[2:])
-    if reason.split()==[]:
-        reason="for no reason"
+    @command(client)
+    async def ranks(self,message,channel,commandline,config):
+        "Print a list of all the roles in the server, sorted by rank"
+        await channel.send('\n'.join([
+            "<@&"+str(role.id)+">"
+            for role in message.guild.roles
+        ]))
 
-    print(message.mentions[0])
-    user=message.mentions[0]
-    await channel.guild.ban(user,reason=reason)
+    @command(client,allowedchannels=modonly,args=[['inviter','id','The ID of the inviter'],['invited','id','The ID of the invited member']])
+    async def invited(self,message,channel,commandline,config):
+        "DO NOT USE!\nManually add someone to the invited list by ID"
+        inviterid=int(commandline[1])
+        memberid=int(commandline[2])
+        inviters=invitersdict[message.guild.id]
+        if memberid not in inviters:
+            inviters[memberid]=[]
+        if memberid not in inviters[inviterid]:
+            inviters[inviterid].append(memberid)
+        write_inviters(inviters)
+        await update_invite_roles(self,inviters,message.guild.get_member(inviterid),config)
 
-    banmessage="Banned "+userstr+"\nReason: "+reason
-    await channel.send(banmessage)
+    @command(client,args=[['inviter...','@person','The people to print the inviters for',True]])
+    async def inviters(self,message,channel,commandline,config):
+        "Print a list of all the users in the server and the people they invited, sorted by number of invites"
+        inviters=invitersdict[message.guild.id]
+        guild=channel.guild
+        if len(message.mentions)==0:
+            invitersmessage=('\n'.join(sorted([
+                (
+                    member_id_str(inviter,guild)+
+                    ":"+
+                    ''.join([
+                        '\n> '+member_id_str(inviter2,guild)
+                        for inviter2 in inviters[inviter]
+                    ])+
+                    "\n"
+                ).strip()+'\n'
+                for inviter in inviters
+            ],key=lambda x:len([l for l in x if l=='\n']))))
+        else:
+            invitersmessage=('\n'.join(sorted([
+                (
+                    member_id_str(inviter,guild)+
+                    ":"+
+                    ''.join([
+                        '\n> '+member_id_str(inviter2,guild)
+                        for inviter2 in inviters[inviter]
+                    ])+
+                    "\n"
+                ).strip()+'\n'
+                for inviter in [mention.id for mention in message.mentions]
+            ],key=lambda x:len([l for l in x if l=='\n']))))
+        await send_big_message(invitersmessage,channel)
 
-    for channelid in config["punishment-notification-channels"]:
-        punishment_channel = channel.guild.get_channel(channelid)
-        await punishment_channel.send(banmessage)
+    @command(client)
+    async def invites(self,message,channel,commandline,config):
+        "Print a list of all the invites to this server"
+        invites=await message.guild.invites()
+        invites=[
+            member_str(invite.inviter)+": https://discord.gg/"+invite.code
+            for invite in invites
+        ]
+        await channel.send('\n'.join(invites))
 
-@command(client,allowedchannels=modonly)
-async def reconfig(self,message,channel,commandline,config):
-    "Reload the config file"
-    global allconfig
-    with open("config.json","r") as configfile:
-        allconfig = json.loads(configfile.read())
-    await message.channel.send('Config successfully reloaded!')
+    @command(client,args=[['person','@person','The person to give the role to',True],['role','@role','The role to give',True]])
+    async def giverole(self,message,channel,commandline,config):
+        "Give a role to someone"
+        managedroleids=get_managed_role_ids(message.author)
+        if message.role_mentions[0].id in managedroleids:
+            if len(commandline)>3:
+                reason=' '.join(commandline[3:])
+            else:
+                reason=None
+            await message.mentions[0].add_roles(message.role_mentions[0],reason=reason)
+            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been given to '+member_str(message.mentions[0])+' '+reason
+            await channel.send(successmessage)
+            return
+        failmessage='You do not have permission to give `@'+message.role_mentions[0].name+'` to '+member_str(message.mentions[0])
+        await channel.send(failmessage)
 
-print("Initialized client")
+    @command(client,args=[['person','@person','The person to remove the role from',True],['role','@role','The role to remove',True]])
+    async def removerole(self,message,channel,commandline,config):
+        "Remove a role from someone"
+        managedroleids=get_managed_role_ids(message.author)
+        if message.role_mentions[0].id in managedroleids:
+            if len(commandline)>3:
+                reason=' '.join(commandline[3:])
+            else:
+                reason=None
+            await message.mentions[0].remove_roles(message.role_mentions[0],reason=reason)
+            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been removed from '+member_str(message.mentions[0])+' '+reason
+            await channel.send(successmessage)
+            return
+        failmessage='You do not have permission to remove `@'+message.role_mentions[0].name+'` from '+member_str(message.mentions[0])
+        await channel.send(failmessage)
 
-print('Read token')
+    @command(client,args=[['role','@role','The role to toggle']])
+    async def togglerole(self,message,channel,commandline,config):
+        "Toggle a role"
+        roles=message.author.roles
+        if message.role_mentions[0].id in config["role-add-any"]:
+            for role in roles:
+                if role.id==message.role_mentions[0].id:
+                    await message.author.remove_roles(message.role_mentions[0])
+                    successmessage='`@'+message.role_mentions[0].name+'` role has been toggled off for '+get_name(message.author)
+                    await channel.send(successmessage)
+                    return
+            await message.author.add_roles(message.role_mentions[0])
+            successmessage='`@'+message.role_mentions[0].name+'` role has been toggled on for '+get_name(message.author)
+            await channel.send(successmessage)
+            return
+        failmessage='You do not have permission to toggle `@'+message.role_mentions[0].name+'`'
+        await channel.send(failmessage)
+
+    @command(client,allowedchannels=modonly,args=[['person','@person','The person to kick'],['reason','@person','The person to kick']])
+    async def kick(self,message,channel,commandline,config):
+        "Kick someone from the server"
+        if channel.id not in config['punishment-channels']:
+            return
+        userstr = commandline[1]
+        reason = " ".join(commandline[2:])
+        if reason.split()==[]:
+            reason="for no reason"
+
+        user=message.mentions[0]
+        await channel.guild.kick(user,reason=reason)
+        kickmessage="Kicked "+userstr+"\nReason: "+reason
+        await channel.send(kickmessage)
+
+        for channelid in config["punishment-notification-channels"]:
+            punishment_channel = channel.guild.get_channel(channelid)
+            await punishment_channel.send(kickmessage)
+
+    @command(client,allowedchannels=modonly,args=[['person','@person','The person to ban']])
+    async def ban(self,message,channel,commandline,config):
+        "Ban someone from the server"
+        if channel.id not in config['punishment-channels']:
+            return
+        userstr = commandline[1]
+        reason = " ".join(commandline[2:])
+        if reason.split()==[]:
+            reason="for no reason"
+
+        user=message.mentions[0]
+        await channel.guild.ban(user,reason=reason)
+
+        banmessage="Banned "+userstr+"\nReason: "+reason
+        await channel.send(banmessage)
+
+        for channelid in config["punishment-notification-channels"]:
+            punishment_channel = channel.guild.get_channel(channelid)
+            await punishment_channel.send(banmessage)
+
+    @command(client,allowedchannels=modonly)
+    async def reconfig(self,message,channel,commandline,config):
+        "Reload the config file"
+        global allconfig
+        with open("config.json","r") as configfile:
+            allconfig = json.loads(configfile.read())
+        await message.channel.send('Config successfully reloaded!')
+
+logf(logfile,"Initialized client")
 client.run(token)
