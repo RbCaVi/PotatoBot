@@ -1,6 +1,17 @@
 import discord
 import json
 import datetime
+import requests
+import os
+import pprint
+import subprocess
+import tqdm
+import shutil
+
+if os.name=='nt':
+    python='py'
+else:
+    python='python3'
 
 invitesdict = {}
 
@@ -102,6 +113,8 @@ class MyClient(discord.Client):
                 inviters=invitersdict[member.guild.id]
                 if member.id not in inviters:
                     inviters[member.id]=[]
+                else:
+                    await update_invite_roles(self,inviters,member.guild.get_member(member.id),config)
                 if member.id not in inviters[invite.inviter.id]:
                     inviters[invite.inviter.id].append(member.id)
                 write_inviters(inviters)
@@ -273,6 +286,13 @@ def timedeltatostr(td):
             return f'{td.seconds//60} minutes {td.seconds%60} seconds'
     return f'{td.days+td.seconds//3600} hours'
 
+def download(url,file_name):
+    get_response = requests.get(url,stream=True)
+    with open(file_name, 'wb') as f:
+        for chunk in get_response.iter_content(chunk_size=1024):
+            if chunk: # filter out keep-alive new chunks
+                f.write(chunk)
+
 def command(client,*,allowedchannels=None,aliases=None,args=None):
     def add_command(func):
         client.commands[func.__name__]=func
@@ -285,7 +305,7 @@ def command(client,*,allowedchannels=None,aliases=None,args=None):
             client.commandargs[func.__name__]=args
     return add_command
 
-logfilename=f'output/potato-log-{datetime.datetime.now()}.txt'
+logfilename=os.path.join('output',f'potato-log-{datetime.datetime.now()}.txt')
 logfile=open(logfilename,'w')
 
 logf(logfile,'Starting...')
@@ -349,7 +369,8 @@ if usecommands:
             statsmessage=(
                 'Highest role: `'+max(message.mentions[0].roles).name+'`'+
                 '\nTime in server: '+timedeltatostr(datetime.datetime.now()-message.mentions[0].joined_at)+
-                '\nNumber of invites: '+str(len([invite for invite in await message.guild.invites() if invite.inviter==message.mentions[0]]))
+                '\nNumber of invites: '+str(len([invite for invite in await message.guild.invites() if invite.inviter==message.mentions[0]]))+
+                '\nNumber of people invited: '+str(len(invitersdict[message.guild.id][message.mentions[0].id]))
             )
         else:
             statsmessage=''
@@ -359,6 +380,7 @@ if usecommands:
                     '\nHighest role: `'+max(mention.roles).name+'`'+
                     '\nTime in server: '+timedeltatostr(datetime.datetime.now()-mention.joined_at)+
                     '\nNumber of invites: '+str(len([invite for invite in await message.guild.invites() if invite.inviter==mention]))+
+                    '\nNumber of people invited: '+str(len(invitersdict[message.guild.id][message.author.id]))+
                     '\n\n'
                 )
         await message.channel.send(statsmessage)
@@ -409,8 +431,27 @@ if usecommands:
         inviters=invitersdict[message.guild.id]
         if memberid not in inviters:
             inviters[memberid]=[]
+        else:
+            try:
+                await update_invite_roles(self,inviters,message.guild.get_member(memberid),config)
+            except:
+                pass
         if memberid not in inviters[inviterid]:
             inviters[inviterid].append(memberid)
+        write_inviters(inviters)
+        try:
+            await update_invite_roles(self,inviters,message.guild.get_member(inviterid),config)
+        except:
+            pass
+
+    @command(client,allowedchannels=modonly,args=[['inviter','id','The ID of the inviter'],['invited','id','The ID of the invited member']])
+    async def uninvited(self,message,channel,commandline,config):
+        "DO NOT USE!\nManually add someone to the invited list by ID"
+        inviterid=int(commandline[1])
+        memberid=int(commandline[2])
+        inviters=invitersdict[message.guild.id]
+        if memberid in inviters[inviterid]:
+            inviters[inviterid].remove(memberid)
         write_inviters(inviters)
         await update_invite_roles(self,inviters,message.guild.get_member(inviterid),config)
 
@@ -467,7 +508,7 @@ if usecommands:
             else:
                 reason=None
             await message.mentions[0].add_roles(message.role_mentions[0],reason=reason)
-            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been given to '+member_str(message.mentions[0])+' '+reason
+            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been given to '+member_str(message.mentions[0])+((' '+reason) if reason else '')
             await channel.send(successmessage)
             return
         failmessage='You do not have permission to give `@'+message.role_mentions[0].name+'` to '+member_str(message.mentions[0])
@@ -483,7 +524,7 @@ if usecommands:
             else:
                 reason=None
             await message.mentions[0].remove_roles(message.role_mentions[0],reason=reason)
-            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been removed from '+member_str(message.mentions[0])+' '+reason
+            successmessage='The `@'+message.role_mentions[0].name+'` role has successfully been removed from '+member_str(message.mentions[0])+((' '+reason) if reason else '')
             await channel.send(successmessage)
             return
         failmessage='You do not have permission to remove `@'+message.role_mentions[0].name+'` from '+member_str(message.mentions[0])
@@ -553,6 +594,90 @@ if usecommands:
         with open("config.json","r") as configfile:
             allconfig = json.loads(configfile.read())
         await message.channel.send('Config successfully reloaded!')
+
+    @command(client,allowedchannels=modonly)
+    async def get_attachments(self,message,cchannel,commandline,config):
+        channel=cchannel
+        folder=f'{datetime.datetime.now()}'
+        os.mkdir(os.path.join('attachments',f'{folder}'))
+        os.mkdir(os.path.join('attachments',f'{folder}','attachments'))
+        if len(message.channel_mentions)>0:
+            channel=message.channel_mentions[0]
+        attachments=[]
+        print(channel)
+        async for message in channel.history(limit=None,oldest_first=True):
+            if len(message.attachments)==0:
+                continue
+            if message.author==self.user:
+                continue
+            for attachment in message.attachments:
+                print(attachment.filename)
+                attachments.append(attachment)
+        itr=tqdm.tqdm(attachments)
+        for attachment in itr:
+            filename=attachment.filename.split('.',maxsplit=1)
+            filename[0]+=f'-{message.created_at}.'
+            filename=''.join(filename)
+            print('\r'+' '*os.get_terminal_size().columns+'\r',end='')
+            print('\nDownloading '+attachment.url)
+            itr.refresh()
+            download(attachment.url, os.path.join('attachments',f'{folder}','attachments',f'{filename}'))
+            print('\r'+' '*os.get_terminal_size().columns+'\r',end='')
+            print('Finished downloading '+attachment.url)
+            itr.refresh()
+        print("Finished downloading all files")
+        subprocess.run(['./zip',os.path.join('attachments',f'{folder}')])
+        print("Finished zipping all files")
+        files=[f'attachments.tar.bz2']
+        size=os.path.getsize(f'attachments/{folder}/attachments.tar.bz2')
+        if size>8000:
+            print("File too large, splitting")
+            subprocess.run(['./split',f'attachments/{folder}'])
+            print("Finished splitting file")
+            files=os.listdir(f'attachments/{folder}')
+            files.remove('attachments')
+            files.remove('attachments.tar.bz2')
+            pass
+        tmessage=await cchannel.send(f'Attachments in <#{channel}>')
+        #thread=await tmessage.create_thread(f'Attachments in {message.channel_mentions[0].name}')
+        for file in files:
+            with open(f'attachments/{folder}/{file}','rb') as f:
+                await cchannel.send(file=discord.File(f))
+        shutil.rmtree(f'attachments/{folder}')
+
+    @command(client)
+    async def inviters_tree(self,message,channel,commandline,config):
+        roots={inviter:{invitee:None for invitee in invitersdict[message.guild.id][inviter]} for inviter in invitersdict[message.guild.id]}
+        roots2=roots.copy()
+        print(roots)
+        for inviter in roots:
+            for invitee in roots[inviter]:
+                roots[inviter][invitee]=roots[invitee]
+                try:
+                    if inviter!=invitee:
+                        del roots2[invitee]
+                except:
+                    pass
+        pprint.pprint(roots2)
+        def formatd(d,g,ids=None):
+            if ids is None:
+                ids=[]
+            if id(d) in ids:
+                return ''
+            if len(d)==0:
+                return ''
+            out=''
+            for i in d:
+                f=formatd(d[i],g,ids+[id(d)])
+                if f=='':
+                    out+='\n'+member_id_str(i,g)
+                    continue
+                out+='\n'+member_id_str(i,g)+f.replace('\n','\n\t')
+            return out
+        print(formatd(roots2,message.guild))
+        await send_big_message(formatd(roots2,message.guild),channel)
+
+
 
 logf(logfile,"Initialized client")
 client.run(token)
