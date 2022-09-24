@@ -3,6 +3,11 @@ import time
 import os
 import sys
 
+if os.name=='nt':
+	python='py'
+else:
+	python='python3'
+
 file=sys.argv[1]
 lastmodified=os.path.getmtime(file)
 process=subprocess.Popen(["python3",file], shell=False)
@@ -13,6 +18,6 @@ while True:
 		print("Restarting...")
 		process.send_signal(subprocess.signal.SIGINT)
 		process.wait()
-		time.sleep(1)
-		process=subprocess.Popen(["python3",file], shell=False)
+		time.sleep(int(process.returncode is not None))
+		process=subprocess.Popen([python,file], shell=False)
 		lastmodified=lastmodified2
