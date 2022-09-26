@@ -51,6 +51,8 @@ class MyClient(discord.Client):
             return
         channel=message.channel
         commandline=message.content.lower().split()
+        if len(commandline)==0:
+            return
         command=commandline[0]
         config=allconfig[str(message.guild.id)]
         if command[0]=='!':
@@ -305,6 +307,16 @@ def command(client,*,allowedchannels=None,aliases=None,args=None):
             client.commandargs[func.__name__]=args
     return add_command
 
+def split(filename):
+    pass
+    return
+    size=os.path.getsize(filename)
+    bsize=1000
+    psize=0
+    partsize=f
+    with open(filename,'rb') as file:
+        pass
+
 logfilename=os.path.join('output',f'potato-log-{datetime.datetime.now()}.txt')
 logfile=open(logfilename,'w')
 
@@ -384,7 +396,6 @@ if usecommands:
                     '\n\n'
                 )
         await message.channel.send(statsmessage)
-
 
     @command(client)
     async def help_roles(self,message,channel,commandline,config):
