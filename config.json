@@ -24,7 +24,8 @@
 		"punishment-notification-channels":[1000561797557932134],
 		"potato-log":1019662675480948756,
 		"new-member-notification-role":1018253249901514752,
-		"welcome-channel":1000561459266326588
+		"welcome-channel":1000561459266326588,
+		"self-response":false
 	},
 	"1020782728209252462":{
 		"manage-role-ids":{},
@@ -35,7 +36,8 @@
 		"punishment-notification-channels":[1020795984348991508],
 		"potato-log":1020796020831035463,
 		"new-member-notification-role":1020797055012196352,
-		"welcome-channel":1020793607738904658
+		"welcome-channel":1020793607738904658,
+		"self-response":true
 	},
 	"mod-only-channels":[1000563661921857557,1019636576596271164]
 }
