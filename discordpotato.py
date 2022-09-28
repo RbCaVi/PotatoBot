@@ -7,6 +7,7 @@ import pprint
 import subprocess
 import tqdm
 import shutil
+import sys
 
 if os.name=='nt':
     python='py'
@@ -39,6 +40,7 @@ class MyClient(discord.Client):
 
     async def on_message(self, message):
         # don't respond to ourselves
+        config=allconfig[str(message.guild.id)]
         logf(logfile,f'+{message.guild.id} {message.channel.id} {message.author.id} '+message.content)
         if self.has_potato(message):
             await message.add_reaction('🥔')
@@ -47,14 +49,13 @@ class MyClient(discord.Client):
                 await log(message,'Deleted '+message.content+' by '+member_str(message.author))
                 await message.delete()
                 return
-        if message.author == self.user:
+        if message.author == self.user and not config['self-response']:
             return
         channel=message.channel
         commandline=message.content.lower().split()
         if len(commandline)==0:
             return
         command=commandline[0]
-        config=allconfig[str(message.guild.id)]
         if command[0]=='!':
             await self.run_command(message,channel,commandline,config,command[1:])
 
@@ -317,7 +318,7 @@ def split(filename):
     with open(filename,'rb') as file:
         pass
 
-logfilename=os.path.join('output',f'potato-log-{datetime.datetime.now()}.txt')
+logfilename=os.path.join('output',f'potato-log-{datetime.datetime.now()}.txt'.replace(':','.'))
 logfile=open(logfilename,'w')
 
 logf(logfile,'Starting...')
@@ -688,7 +689,10 @@ if usecommands:
         print(formatd(roots2,message.guild))
         await send_big_message(formatd(roots2,message.guild),channel)
 
-
+    @command(client,allowedchannels=modonly)
+    async def code(self,message,channel,commandline,config):
+        with open(sys.argv[0],'rb') as f:
+            await channel.send(file=discord.File(f))
 
 logf(logfile,"Initialized client")
 client.run(token)
