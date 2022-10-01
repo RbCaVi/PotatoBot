@@ -610,7 +610,7 @@ if usecommands:
     @command(client,allowedchannels=modonly)
     async def get_attachments(self,message,cchannel,commandline,config):
         channel=cchannel
-        folder=f'{datetime.datetime.now()}'
+        folder=f'{datetime.datetime.now()}'.replace(':','.')
         os.mkdir(os.path.join('attachments',f'{folder}'))
         os.mkdir(os.path.join('attachments',f'{folder}','attachments'))
         if len(message.channel_mentions)>0:
@@ -670,7 +670,6 @@ if usecommands:
                         del roots2[invitee]
                 except:
                     pass
-        pprint.pprint(roots2)
         def formatd(d,g,ids=None):
             if ids is None:
                 ids=[]
