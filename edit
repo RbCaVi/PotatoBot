@@ -1,0 +1,3 @@
+env BAMF_DESKTOP_FILE_HINT=/var/lib/snapd/desktop/applications/sublime-text_subl.desktop \
+/snap/bin/sublime-text.subl \
+/home/rvail/Desktop/code/projects/Discord/PotatoBot.py

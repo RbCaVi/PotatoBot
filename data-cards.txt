@@ -1,0 +1,142 @@
+=== Deep Space Data ===
+Unlike the other data types, deep space data is not initially available upon reaching space. All deep space data tiers require naquium.
+
+{| class="wikitable mw-collapsible"
+!colspan="7"|Deep Space Data
+|-
+!Icon
+!Name
+!Tier
+!Source
+!Facility
+!Exotic Ore
+!Notes
+|-
+|[[File:Nanoengineering data.png]]
+|Nanoengineering Data
+|1
+|Nanomaterial, particle stream
+|Space manufactory
+|Beryllium, holmium, iridium, naquium, vitamelange
+|
+|-
+|[[File:Naquium energy data.png]]
+|Naquium Energy Data
+|1
+|Ion canister, naquium ingot
+|Electromagnetics
+|Naquium
+|
+|-
+|[[File:Naquium structural data.png]]
+|Naquium Structural Data
+|1
+|Naquium ingot, lubricant
+|Mechanical
+|Naquium
+|
+|-
+|[[File:Void probe data.png]]
+|Interstellar Void Probe Data
+|1
+|Launch an interstellar void probe
+|
+|
+|Returns 1k data
+|-
+|[[File:Annihilation data.png]]
+|Annihilation Data
+|2
+|Particle stream, antimatter stream
+|Particle collider
+|
+|
+|-
+|[[File:Hyperlattice data.png]]
+|Hyperlattice Data
+|2
+|Nanomaterial, naquium plate
+|Laser
+|Beryllium, holmium, iridium, naquium, vitamelange
+|
+|-
+|[[File:Singularity data.png]]
+|Singularity Data
+|2
+|Naquium cube, entanglement data, particle stream
+|Particle collider
+|Naquium, vulcanite
+|50% success rate, requires energy data
+|-
+|[[File:Timespace anomaly data.png]]
+|Timespace Anomaly Data
+|2
+|Naquium cube, gravitational, negative pressure, micro black hole, and zero point energy data
+|Gravimetrics
+|Naquium, vulcanite
+|60% success rate, 60% chance to return input data
+|-
+|[[File:Space dilation data.png]]
+|Space Dilation Data
+|3
+|Naquium plate, 2 types of arcosphere
+|Gravimetrics
+|Naquium
+|Input arcospheres periodically change
+|-
+|[[File:Space fold data.png]]
+|Space Folding Data
+|3
+|Naquium plate, 2 types of arcosphere
+|Gravimetrics
+|Naquium
+|Input arcospheres periodically change
+|-
+|[[File:Space injection data.png]]
+|Space Injection Data
+|3
+|Naquium plate, 2 types of arcosphere
+|Gravimetrics
+|Naquium
+|Input arcospheres periodically change
+|-
+|[[File:Space warp data.png]]
+|Space Warping Data
+|3
+|Naquium plate, 2 types of arcosphere
+|Gravimetrics
+|Naquium
+|Input arcospheres periodically change
+|-
+|[[File:Interstellar data.png]]
+|Interstellar Travel Data
+|4
+|
+|Nexus
+|
+|Requires a spaceship
+|-
+|[[File:Reality hypergraph analysis data.png]]
+|Reality Hypergraph Analysis Data
+|4
+|Naquium processor, cryonite rod
+|Deep supercomputer
+|Naquium, cryonite
+|
+|-
+|[[File:Teleportation data.png]]
+|Teleportation Data
+|4
+|Naquium cube, cryonite rod, singularity and timespace anomaly data
+|Laser
+|Naquium, cryonite, vulcanite
+|
+|-
+|[[File:Wormhole data.png]]
+|Wormhole Data
+|4
+|Naquium cube, cryonite rod, 4 types of arcosphere
+|Gravimetrics
+|Naquium, cryonite, vulcanite
+|
+|}

@@ -16,7 +16,8 @@
 			]
 		},
 		"role-add-any":[
-			1018253249901514752
+			1018253249901514752,
+			1035232511367856329
 		],
 		"invite-ranks":[0,2,5],
 		"invite-roles":[1000479869823619232,1001195150275522711,1001129171755479062],
@@ -25,7 +26,21 @@
 		"potato-log":1019662675480948756,
 		"new-member-notification-role":1018253249901514752,
 		"welcome-channel":1000561459266326588,
-		"self-response":false
+		"self-response":false,
+		"command-restrictions":{
+			"kick":{
+				"user":{
+					"allow-for-all":true,
+					"exceptions":[533265248988168222]
+				}
+			},
+			"ban":{
+				"user":{
+					"allow-for-all":true,
+					"exceptions":[533265248988168222]
+				}
+			}
+		}
 	},
 	"1020782728209252462":{
 		"manage-role-ids":{},
@@ -37,7 +52,40 @@
 		"potato-log":1020796020831035463,
 		"new-member-notification-role":1020797055012196352,
 		"welcome-channel":1020793607738904658,
-		"self-response":true
+		"self-response":true,
+		"command-restrictions":{
+			"say":[
+				{
+					"user":{
+						"allow-for-all":true,
+						"exceptions":[1004373757990809662]
+					},
+					"channel":{
+						"allow-for-all":false,
+						"exceptions":[1020793607738904658]
+					}
+				}
+			],
+			"echo":{
+				"user":{
+					"allow-for-all":false,
+					"exceptions":[1004373757990809662]
+				}
+			},
+			"kick":{
+				"user":{
+					"allow-for-all":true,
+					"exceptions":[533265248988168222]
+				}
+			},
+			"ban":{
+				"user":{
+					"allow-for-all":true,
+					"exceptions":[533265248988168222]
+				}
+			}
+		},
+		"groups":{}
 	},
 	"mod-only-channels":[1000563661921857557,1019636576596271164]
 }
